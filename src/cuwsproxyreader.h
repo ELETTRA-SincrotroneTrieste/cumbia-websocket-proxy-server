@@ -30,9 +30,9 @@ class CuWsProxyReader : public QObject, public CuDataListener, public CuContextI
     Q_PROPERTY(QString source READ source WRITE setSource DESIGNABLE true)
 
 public:
-    CuWsProxyReader(QWidget *w, Cumbia *cumbia, const CuControlsReaderFactoryI &r_fac);
+    CuWsProxyReader(QObject *o, Cumbia *cumbia, const CuControlsReaderFactoryI &r_fac);
 
-    CuWsProxyReader(QWidget *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool);
+    CuWsProxyReader(QObject *o, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool);
 
     virtual ~CuWsProxyReader();
 

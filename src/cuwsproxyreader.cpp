@@ -25,7 +25,7 @@ public:
  *
  *  Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
-CuWsProxyReader::CuWsProxyReader(QWidget *w, Cumbia *cumbia, const CuControlsReaderFactoryI &r_factory) :
+CuWsProxyReader::CuWsProxyReader(QObject *w, Cumbia *cumbia, const CuControlsReaderFactoryI &r_factory) :
     QObject(w), CuDataListener()
 {
     m_init();
@@ -36,7 +36,7 @@ CuWsProxyReader::CuWsProxyReader(QWidget *w, Cumbia *cumbia, const CuControlsRea
  *
  *   Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
-CuWsProxyReader::CuWsProxyReader(QWidget *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
+CuWsProxyReader::CuWsProxyReader(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
     QObject(w), CuDataListener()
 {
     m_init();

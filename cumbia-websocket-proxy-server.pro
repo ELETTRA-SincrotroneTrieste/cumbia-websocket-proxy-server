@@ -22,11 +22,13 @@ OBJECTS_DIR = obj
 
 SOURCES += src/main.cpp \
         src/cuwsproxyreader.cpp \
-        src/cumbia-websocket-proxy-server.cpp
+        src/cumbia-websocket-proxy-server.cpp \
+        src/cuwssourcevalidator.cpp
 
 HEADERS +=  \
         src/cuwsproxyreader.h \
-    src/cumbia-websocket-proxy-server.h
+    src/cumbia-websocket-proxy-server.h \
+    src/cuwssourcevalidator.h
 
 #
 INCLUDEPATH += src

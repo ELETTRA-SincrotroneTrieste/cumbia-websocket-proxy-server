@@ -26,16 +26,19 @@ int main(int argc, char *argv[])
     qu_app.setProperty("hwReferent", "$HW_REFERENT$"); /* name of the referent that provides the device server */
     
     QCommandLineParser parser;
-    QCommandLineOption port_o(QStringList() << "p" << "port", "Listen port" , "port", "12702");
-    QCommandLineOption addr_o(QStringList() << "s" << "--server-address", "Server address", "address", "");
+    QCommandLineOption ws_port_o(QStringList() << "p" << "ws-port", "Listen port" , "port", "12702");
+    QCommandLineOption http_port_o(QStringList() << "q" << "http-port", "Listen port" , "port", "12703");
+    QCommandLineOption ws_addr_o(QStringList() << "s" << "server-address", "Server address", "address", "");
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addOption(port_o);
-    parser.addOption(addr_o);
+    parser.addOption(ws_port_o);
+    parser.addOption(http_port_o);
+    parser.addOption(ws_addr_o);
     parser.process(qu_app);
 
     CumbiaPool *cu_p = new CumbiaPool();
-    CuWsProxyServer *w = new CuWsProxyServer(cu_p, NULL, parser.value(addr_o), parser.value(port_o).toInt());
+    CuWsProxyServer *w = new CuWsProxyServer(cu_p, NULL, parser.value(ws_addr_o), parser.value(ws_port_o).toInt(),
+                                             parser.value(http_port_o).toInt());
 
     ret = qu_app.exec();
     delete w;
