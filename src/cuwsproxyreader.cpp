@@ -46,7 +46,7 @@ CuWsProxyReader::CuWsProxyReader(QObject *w, CumbiaPool *cumbia_pool, const CuCo
 void CuWsProxyReader::m_init()
 {
     d = new CuWsProxyReaderPrivate;
-    d->context = NULL;
+    d->context = nullptr;
     d->auto_configure = true;
     d->read_ok = false;
 }
@@ -97,21 +97,14 @@ void CuWsProxyReader::unsetSource()
     d->context->disposeReader();
 }
 
-void CuWsProxyReader::onUpdate(const CuData &da)
-{
-    QString message = QString::fromStdString(da["msg"].toString());
+void CuWsProxyReader::onUpdate(const CuData &da) {
+    std::string message = da["msg"].toString();
     d->read_ok = !da["err"].toBool();
 
     // update link statistics
     d->context->getLinkStats()->addOperation();
     if(!d->read_ok)
-        d->context->getLinkStats()->addError(da["msg"].toString());
+        d->context->getLinkStats()->addError(message);
 
-    CuVariant val = da["value"];
-
-
-    if(d->read_ok && val.isValid()) {
-
-    }
     emit newData(da);
 }
