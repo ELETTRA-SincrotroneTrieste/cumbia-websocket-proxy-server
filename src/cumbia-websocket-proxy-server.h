@@ -27,7 +27,7 @@ public:
 
 protected slots:
     void onAcceptError(QAbstractSocket::SocketError e);
-    void onNewData(const CuData &data);
+    void onNewData(const CuData &data, const char* atype);
     void onWebSoErr(QAbstractSocket::SocketError e);
 
     //

@@ -1,8 +1,6 @@
-#include "cuwsproxyreader.h"
-#include "cucontrolsreader_abs.h"
-#include <cumacros.h>
+#include "cuwsproxyconfig.h"
+#include <cucontrolsreader_abs.h>
 #include <cumbiapool.h>
-#include <cudata.h>
 #include <QContextMenuEvent>
 #include <QMetaProperty>
 #include <QRegularExpression>
@@ -11,11 +9,10 @@
 #include "cucontrolsfactories_i.h"
 #include "cucontrolsfactorypool.h"
 #include "culinkstats.h"
-#include "cucontextmenu.h"
 #include "cucontext.h"
 
 /** @private */
-class CuWsProxyReaderPrivate
+class CuWsProxyConfigPrivate
 {
 public:
 };
@@ -24,40 +21,36 @@ public:
  *
  *   Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
-CuWsProxyReader::CuWsProxyReader(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
+CuWsProxyConfig::CuWsProxyConfig(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
     CuWsProxy(w), CuDataListener()
 {
     m_init();
     d_p->context = new CuContext(cumbia_pool, fpool);
 }
 
-void CuWsProxyReader::m_init()
+void CuWsProxyConfig::m_init()
 {
-    m = new CuWsProxyReaderPrivate;
+    m = new CuWsProxyConfigPrivate;
 }
 
-CuWsProxyReader::~CuWsProxyReader()
+CuWsProxyConfig::~CuWsProxyConfig()
 {
-    pdelete("~CuWsProxyReader %p", this);
+    pdelete("~CuWsProxyConfig %p", this);
     delete m;
 }
 
-QString CuWsProxyReader::source() const
+QString CuWsProxyConfig::source() const
 {
     if(CuControlsReaderA* r = d_p->context->getReader())
         return d_p->src_proto_prefix + r->source();
     return "";
 }
 
-/** \brief Connect the reader to the specified source.
- *
- * If a reader with a different source is configured, it is deleted.
- * If options have been set with QuContext::setOptions, they are used to set up the reader as desired.
- *
- * @see QuContext::setOptions
- * @see source
- */
-void CuWsProxyReader::setSource(const QString &s)
+const char *CuWsProxyConfig::actionType() const {
+    return "conf";
+}
+
+void CuWsProxyConfig::setSource(const QString &s)
 {
     QRegularExpression re("(ws[s]{0,1}\\://).*");
     QRegularExpressionMatch match = re.match(s);
@@ -66,17 +59,18 @@ void CuWsProxyReader::setSource(const QString &s)
     QString src(s);
     src.remove(d_p->src_proto_prefix);
     printf("CuWsProxyServer.setSource: src %s\n", qstoc(src));
+    d_p->context->setOptions(CuData("properties-only", true));
     CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
     if(r)
         r->setSource(src);
 }
 
-void CuWsProxyReader::unsetSource()
+void CuWsProxyConfig::unsetSource()
 {
     d_p->context->disposeReader();
 }
 
-void CuWsProxyReader::onUpdate(const CuData &da) {
+void CuWsProxyConfig::onUpdate(const CuData &da) {
     std::string message = da["msg"].toString();
     d_p->read_ok = !da["err"].toBool();
 
@@ -96,8 +90,6 @@ void CuWsProxyReader::onUpdate(const CuData &da) {
     }
     else
         emit newData(da, actionType());
-}
 
-const char *CuWsProxyReader::actionType() const {
-    return "subscribe";
+    deleteLater();
 }

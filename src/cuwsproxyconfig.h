@@ -1,5 +1,5 @@
-#ifndef CuWsProxyReader_H
-#define CuWsProxyReader_H
+#ifndef CuWsProxyConfig_H
+#define CuWsProxyConfig_H
 
 #include <QObject>
 #include <cudatalistener.h>
@@ -9,11 +9,11 @@
 
 #include <QString>
 
-class CuWsProxyReaderPrivate;
+class CuWsProxyConfigPrivate;
 class CumbiaPool;
 class CuControlsFactoryPool;
 
-/*! \brief CuWsProxyReader is a reader
+/*! \brief CuWsProxyConfig is a Config
  *
  * Connection is initiated with setSource. When new data arrives, it is displayed and the newData convenience
  * signal is emitted.
@@ -21,24 +21,21 @@ class CuControlsFactoryPool;
  * getContext returns a pointer to the CuContext used as a delegate for the connection.
  *
 */
-class CuWsProxyReader : public CuWsProxy, public CuDataListener
+class CuWsProxyConfig : public CuWsProxy, public CuDataListener
 {
     Q_OBJECT
 public:
-    CuWsProxyReader(QObject *o, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool);
-    virtual ~CuWsProxyReader();
+    CuWsProxyConfig(QObject *o, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool);
+    virtual ~CuWsProxyConfig();
     QString source() const;
-    const char *actionType() const;
-
+    const char* actionType() const;
 public slots:
     void setSource(const QString& s);
     void unsetSource();
-
 signals:
     void newData(const CuData&da, const char* atype);
-
 private:
-    CuWsProxyReaderPrivate *m;
+    CuWsProxyConfigPrivate *m;
     void m_init();
     // CuDataListener interface
 public:

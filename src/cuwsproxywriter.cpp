@@ -1,5 +1,5 @@
-#include "cuwsproxyreader.h"
-#include "cucontrolsreader_abs.h"
+#include "cuwsproxywriter.h"
+#include "cucontrolswriter_abs.h"
 #include <cumacros.h>
 #include <cumbiapool.h>
 #include <cudata.h>
@@ -14,9 +14,7 @@
 #include "cucontextmenu.h"
 #include "cucontext.h"
 
-/** @private */
-class CuWsProxyReaderPrivate
-{
+class CuWsProxyWriterPrivate {
 public:
 };
 
@@ -24,40 +22,40 @@ public:
  *
  *   Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
-CuWsProxyReader::CuWsProxyReader(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
-    CuWsProxy(w), CuDataListener()
-{
+CuWsProxyWriter::CuWsProxyWriter(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
+    CuWsProxy(w), CuDataListener() {
     m_init();
     d_p->context = new CuContext(cumbia_pool, fpool);
 }
 
-void CuWsProxyReader::m_init()
-{
-    m = new CuWsProxyReaderPrivate;
+void CuWsProxyWriter::m_init() {
+    m = new CuWsProxyWriterPrivate;
 }
 
-CuWsProxyReader::~CuWsProxyReader()
-{
-    pdelete("~CuWsProxyReader %p", this);
+CuWsProxyWriter::~CuWsProxyWriter() {
+    pdelete("~CuWsProxyWriter %p", this);
     delete m;
 }
 
-QString CuWsProxyReader::source() const
-{
-    if(CuControlsReaderA* r = d_p->context->getReader())
-        return d_p->src_proto_prefix + r->source();
+QString CuWsProxyWriter::target() const {
+    if(CuControlsWriterA* r = d_p->context->getWriter())
+        return d_p->src_proto_prefix + r->target();
     return "";
 }
 
-/** \brief Connect the reader to the specified source.
+const char *CuWsProxyWriter::actionType() const {
+    return "write";
+}
+
+/** \brief Connect the Writer to the specified source.
  *
- * If a reader with a different source is configured, it is deleted.
- * If options have been set with QuContext::setOptions, they are used to set up the reader as desired.
+ * If a Writer with a different source is configured, it is deleted.
+ * If options have been set with QuContext::setOptions, they are used to set up the Writer as desired.
  *
  * @see QuContext::setOptions
  * @see source
  */
-void CuWsProxyReader::setSource(const QString &s)
+void CuWsProxyWriter::setTarget(const QString &s)
 {
     QRegularExpression re("(ws[s]{0,1}\\://).*");
     QRegularExpressionMatch match = re.match(s);
@@ -65,18 +63,18 @@ void CuWsProxyReader::setSource(const QString &s)
         d_p->src_proto_prefix = match.captured(1);
     QString src(s);
     src.remove(d_p->src_proto_prefix);
-    printf("CuWsProxyServer.setSource: src %s\n", qstoc(src));
-    CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
-    if(r)
-        r->setSource(src);
+    printf("CuWsProxyWriter.setTarget: target %s\n", qstoc(src));
+    CuControlsWriterA * w = d_p->context->replace_writer(src.toStdString(), this);
+    if(w)
+        w->setTarget(src);
 }
 
-void CuWsProxyReader::unsetSource()
+void CuWsProxyWriter::clearTarget()
 {
-    d_p->context->disposeReader();
+    d_p->context->disposeWriter();
 }
 
-void CuWsProxyReader::onUpdate(const CuData &da) {
+void CuWsProxyWriter::onUpdate(const CuData &da) {
     std::string message = da["msg"].toString();
     d_p->read_ok = !da["err"].toBool();
 
@@ -96,8 +94,4 @@ void CuWsProxyReader::onUpdate(const CuData &da) {
     }
     else
         emit newData(da, actionType());
-}
-
-const char *CuWsProxyReader::actionType() const {
-    return "subscribe";
 }

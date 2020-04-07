@@ -7,7 +7,7 @@ class CuData;
 class CuWsDataToJson
 {
 public:
-    QString toJson(const CuData& d);
+    QString toJson(const CuData& d, const char *atype);
 };
 
 #endif // CUWSDATATOJSON_H

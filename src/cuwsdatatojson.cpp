@@ -8,13 +8,15 @@
 #include <QMap>
 #include <qustring.h>
 #include <qustringlist.h>
+#include <QtDebug>
 
-QString CuWsDataToJson::toJson(const CuData &d)
+QString CuWsDataToJson::toJson(const CuData &d, const char* atype)
 {
     QString j;
     QJsonObject o;
     QJsonObject data_o;
     o["src"] = QuString(d, "src");
+    o["atype"] = QString(atype);
     QMap<QString, QStringList> slmap;
     if(d.has("type", "property")) {
         QStringList keys = QStringList () << "abs_change" << "archive_abs_change" << "archive_period"
@@ -44,7 +46,7 @@ QString CuWsDataToJson::toJson(const CuData &d)
     // skip "event", it can break decoding on cumbia-websocket client side
     // "event" is used by canoned to name the source
     QStringList keys = QStringList() << "msg" << "type" << "activity"
-                                     << "quality_string" << "state_string" << "quality_color" << "state_color"
+                                     << "quality_string" << "state_string" << "quality_color" << "state_color" << "writable"
                                      << "data_format" << "data_format_str" << "device" << "mode" << "point" << "rmode";
 
     foreach(QString k, keys) {
@@ -58,13 +60,18 @@ QString CuWsDataToJson::toJson(const CuData &d)
     if(d.containsKey("argins"))
         slmap["argins"] = QuStringList(d["argins"].toStringVector());
 
-    // timestamp and error
-    data_o["timestamp_ms"] = static_cast<qint64>(d["timestamp_ms"].toLongInt());
+    // timestamp and error. Use double version of timestamp_ms to stay safe
+    // if talking to a 32 bit system (WebAssembly)
+    data_o["timestamp_ms"] = static_cast<double>(d["timestamp_ms"].toLongInt());
     data_o["timestamp_us"] = d["timestamp_us"].toDouble();
     data_o["err"] = d["err"].toBool();
+    qDebug() << __PRETTY_FUNCTION__ << data_o["timestamp_ms"] << data_o["timestamp_us"];
 
-    if(d.containsKey("quality"))
-        data_o["quality"] = d["quality"].toInt();
+    // to int
+    QStringList itypes = QStringList() << "format" << "writable" << "data_type";
+    foreach(QString ityp, itypes)
+        if(d.containsKey(ityp.toStdString()))
+            data_o[ityp] = d[ityp.toStdString()].toInt();
 
     QStringList vas = QStringList () << "value" << "w_value";
     foreach(const QString& vk, vas) {

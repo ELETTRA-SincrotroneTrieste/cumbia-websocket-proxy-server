@@ -1,5 +1,7 @@
 #include "cumbia-websocket-proxy-server.h"
 #include "cuwsproxyreader.h"
+#include "cuwsproxywriter.h"
+#include "cuwsproxyconfig.h"
 #include "cuwssourcevalidator.h"
 #include "cuwsdatatojson.h"
 
@@ -74,12 +76,16 @@ void CuWsProxyServer::onAcceptError(QAbstractSocket::SocketError e) {
     perr("CuWsProxyServer.onAcceptError: %d", e);
 }
 
-void CuWsProxyServer::onNewData(const CuData &data) {
+void CuWsProxyServer::onNewData(const CuData &data, const char *atype) {
     QuString src(data, "src");
-    foreach(QWebSocket* so, m_so_map.values(src)) {
+    QString name = QString("%1/%2").arg(atype).arg(src);
+    qDebug() << __PRETTY_FUNCTION__ << "name" << name;
+    foreach(QWebSocket* so, m_so_map.values(name)) {
         CuWsDataToJson d2j;
-        so->sendTextMessage(d2j.toJson(data));
+        qDebug() << __PRETTY_FUNCTION__ << "name" << name << "so" << so;
+        so->sendTextMessage(d2j.toJson(data, atype));
     }
+
 }
 
 void CuWsProxyServer::onWebSoErr(QAbstractSocket::SocketError e)
@@ -104,21 +110,41 @@ void CuWsProxyServer::onWsServerClosed() {
 void CuWsProxyServer::processTextMessage(const QString &msg) {
     qDebug() << __PRETTY_FUNCTION__ << msg;
     QWebSocket *so = qobject_cast<QWebSocket *>(sender());
-    QRegularExpression re("SUBSCRIBE\\s+(.*)");
+    QRegularExpression re("(SUBSCRIBE|CONF|WRITE)\\s+(.*)");
     QRegularExpressionMatch ma = re.match(msg);
-    if(ma.hasMatch() && ma.capturedTexts().size() == 2) {
-        QString src = ma.capturedTexts()[1];
+    if(ma.hasMatch() && ma.capturedTexts().size() == 3) {
+        QString src = ma.capturedTexts()[2];
+        QString mode = ma.capturedTexts()[1].toLower();
+        QString name = mode + "/" + src;
         CuWsSourceValidator validator;
         if(validator.isValid(src)) {
-            CuWsProxyReader *r = findChild<CuWsProxyReader *>(src);
-            if(!r) {
-                r = new CuWsProxyReader(this, cu_pool, m_ctrl_factory_pool);
-                r->setObjectName(src);
-                connect(r, SIGNAL(newData(CuData)), this, SLOT(onNewData(CuData)));
-                r->setSource(src);
+            CuWsProxy * proxy = findChild<CuWsProxy *>(name);
+            if(!proxy) {
+                if(mode == "subscribe") {
+                    proxy = new CuWsProxyReader(this, cu_pool, m_ctrl_factory_pool);
+                    qobject_cast<CuWsProxyReader *>(proxy)->setSource(src);
+                }
+                else if(mode == "conf") {
+                    proxy = new CuWsProxyConfig(this, cu_pool, m_ctrl_factory_pool);
+                    qobject_cast<CuWsProxyConfig *>(proxy)->setSource(src);
+                }
+                else {
+                    proxy = new CuWsProxyWriter(this, cu_pool, m_ctrl_factory_pool);
+                    qobject_cast<CuWsProxyWriter *>(proxy)->setTarget(src);
+                }
+                proxy->setObjectName(name);
+                connect(proxy, SIGNAL(newData(CuData, const char*)), this, SLOT(onNewData(CuData, const char*)));
             }
-            QWebSocket *so = qobject_cast<QWebSocket *>(sender());
-            m_so_map.insert(src, so);
+            else {
+                const CuData& config = proxy->getConfig();
+                if(!config.isEmpty()) {
+                    CuWsDataToJson d2j;
+                    printf("\e[1;32mCuWsProxyServer.processTextMessage: sending cached configuration \e[1;33m%s\e[0m\n", config.toString().c_str());
+                    so->sendTextMessage(d2j.toJson(config, mode.toLatin1().data()));
+                }
+            }
+            qDebug() << __PRETTY_FUNCTION__ << "saving in so map " << name << so;
+            m_so_map.insert(name, so);
         }
     }
     else {
@@ -136,6 +162,7 @@ void CuWsProxyServer::processTextMessage(const QString &msg) {
             }
         }
     }
+
 }
 
 void CuWsProxyServer::onCliConnected() {
