@@ -10,9 +10,11 @@
 
 #include "cucontrolsfactories_i.h"
 #include "cucontrolsfactorypool.h"
+#include "cucontrolsutils.h"
 #include "culinkstats.h"
 #include "cucontextmenu.h"
 #include "cucontext.h"
+#include <qustring.h>
 
 class CuWsProxyWriterPrivate {
 public:
@@ -33,7 +35,8 @@ void CuWsProxyWriter::m_init() {
 }
 
 CuWsProxyWriter::~CuWsProxyWriter() {
-    pdelete("~CuWsProxyWriter %p", this);
+    clearTarget();
+    pdelete("~CuWsProxyWriter %p %s/%s", this, actionType(), qstoc(src()));
     delete m;
 }
 
@@ -45,6 +48,15 @@ QString CuWsProxyWriter::target() const {
 
 const char *CuWsProxyWriter::actionType() const {
     return "write";
+}
+
+bool CuWsProxyWriter::parseRawTarget(const QString &raw, QString &target, CuVariant &args) const {
+    // 1. extract arguments, if present a/b/c/d(10,11)
+    CuControlsUtils cu;
+    args = cu.getArgs(raw, this);
+    target = raw;
+    target.remove(QRegularExpression("\\(.*\\)"));
+    return target != raw;
 }
 
 /** \brief Connect the Writer to the specified source.
@@ -61,17 +73,25 @@ void CuWsProxyWriter::setTarget(const QString &s)
     QRegularExpressionMatch match = re.match(s);
     if(match.hasMatch() && match.capturedTexts().size() == 2)
         d_p->src_proto_prefix = match.captured(1);
-    QString src(s);
-    src.remove(d_p->src_proto_prefix);
-    printf("CuWsProxyWriter.setTarget: target %s\n", qstoc(src));
-    CuControlsWriterA * w = d_p->context->replace_writer(src.toStdString(), this);
+    QString target(s);
+    target.remove(d_p->src_proto_prefix);
+    d_p->context->setOptions(CuData("no-properties", true));
+    CuControlsWriterA * w = d_p->context->replace_writer(target.toStdString(), this);
     if(w)
-        w->setTarget(src);
+        w->setTarget(target);
 }
 
 void CuWsProxyWriter::clearTarget()
 {
     d_p->context->disposeWriter();
+}
+
+void CuWsProxyWriter::execute(const CuVariant& args) {
+    CuControlsWriterA *w = d_p->context->getWriter();
+    if(w) { // args set on w in setTarget
+        w->setArgs(args);
+        w->execute();
+    }
 }
 
 void CuWsProxyWriter::onUpdate(const CuData &da) {
@@ -85,7 +105,6 @@ void CuWsProxyWriter::onUpdate(const CuData &da) {
 
     if(da.has("type",  "property"))
         d_p->config = da;
-    qDebug() << __PRETTY_FUNCTION__ << da.toString().c_str();
     if(!d_p->src_proto_prefix.isEmpty()) {
         // copy da and modify src to add prefix (ws[s]://)
         CuData dat(da);

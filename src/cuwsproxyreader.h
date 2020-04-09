@@ -39,7 +39,6 @@ signals:
 
 private:
     CuWsProxyReaderPrivate *m;
-    void m_init();
     // CuDataListener interface
 public:
     void onUpdate(const CuData &d);

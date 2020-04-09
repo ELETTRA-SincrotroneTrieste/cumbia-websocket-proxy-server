@@ -35,7 +35,8 @@ void CuWsProxyConfig::m_init()
 
 CuWsProxyConfig::~CuWsProxyConfig()
 {
-    pdelete("~CuWsProxyConfig %p", this);
+    pdelete("~CuWsProxyConfig %p %s/%s", this, actionType(), qstoc(src()));
+    unsetSource();
     delete m;
 }
 
@@ -58,7 +59,7 @@ void CuWsProxyConfig::setSource(const QString &s)
         d_p->src_proto_prefix = match.captured(1);
     QString src(s);
     src.remove(d_p->src_proto_prefix);
-    printf("CuWsProxyServer.setSource: src %s\n", qstoc(src));
+    printf("CuWsProxyConfig.setSource: src %s\n", qstoc(src));
     d_p->context->setOptions(CuData("properties-only", true));
     CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
     if(r)
@@ -79,17 +80,15 @@ void CuWsProxyConfig::onUpdate(const CuData &da) {
     if(!d_p->read_ok)
         d_p->context->getLinkStats()->addError(message);
 
-    if(da.has("type",  "property"))
+    if(da.has("type",  "property")) {
         d_p->config = da;
-    qDebug() << __PRETTY_FUNCTION__ << da.toString().c_str();
-    if(!d_p->src_proto_prefix.isEmpty()) {
-        // copy da and modify src to add prefix (ws[s]://)
-        CuData dat(da);
-        dat["src"] = d_p->src_proto_prefix.toStdString() + da["src"].toString();
-        emit newData(dat, actionType());
+        if(!d_p->src_proto_prefix.isEmpty()) {
+            // copy da and modify src to add prefix (ws[s]://)
+            CuData dat(da);
+            dat["src"] = d_p->src_proto_prefix.toStdString() + da["src"].toString();
+            emit newData(dat, actionType());
+        }
+        else
+            emit newData(da, actionType());
     }
-    else
-        emit newData(da, actionType());
-
-    deleteLater();
 }

@@ -25,25 +25,18 @@ public:
  *   Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
 CuWsProxyReader::CuWsProxyReader(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
-    CuWsProxy(w), CuDataListener()
-{
-    m_init();
+    CuWsProxy(w), CuDataListener() {
+    m = new CuWsProxyReaderPrivate;
     d_p->context = new CuContext(cumbia_pool, fpool);
 }
 
-void CuWsProxyReader::m_init()
-{
-    m = new CuWsProxyReaderPrivate;
-}
-
-CuWsProxyReader::~CuWsProxyReader()
-{
-    pdelete("~CuWsProxyReader %p", this);
+CuWsProxyReader::~CuWsProxyReader() {
+    pdelete("~CuWsProxyReader %p %s/%s", this, actionType(), qstoc(src()));
+    unsetSource();
     delete m;
 }
 
-QString CuWsProxyReader::source() const
-{
+QString CuWsProxyReader::source() const {
     if(CuControlsReaderA* r = d_p->context->getReader())
         return d_p->src_proto_prefix + r->source();
     return "";
@@ -57,22 +50,20 @@ QString CuWsProxyReader::source() const
  * @see QuContext::setOptions
  * @see source
  */
-void CuWsProxyReader::setSource(const QString &s)
-{
+void CuWsProxyReader::setSource(const QString &s) {
     QRegularExpression re("(ws[s]{0,1}\\://).*");
     QRegularExpressionMatch match = re.match(s);
     if(match.hasMatch() && match.capturedTexts().size() == 2)
         d_p->src_proto_prefix = match.captured(1);
     QString src(s);
     src.remove(d_p->src_proto_prefix);
-    printf("CuWsProxyServer.setSource: src %s\n", qstoc(src));
+    d_p->context->setOptions(CuData("no-properties", true));
     CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
     if(r)
         r->setSource(src);
 }
 
-void CuWsProxyReader::unsetSource()
-{
+void CuWsProxyReader::unsetSource() {
     d_p->context->disposeReader();
 }
 
@@ -87,7 +78,6 @@ void CuWsProxyReader::onUpdate(const CuData &da) {
 
     if(da.has("type",  "property"))
         d_p->config = da;
-    qDebug() << __PRETTY_FUNCTION__ << da.toString().c_str();
     if(!d_p->src_proto_prefix.isEmpty()) {
         // copy da and modify src to add prefix (ws[s]://)
         CuData dat(da);

@@ -12,6 +12,8 @@
 #include <QWebSocket>
 #include <QWebSocketServer>
 
+#include "linkpool.h"
+
 class QTcpServer;
 class CuData;
 class CumbiaPool;
@@ -44,7 +46,9 @@ private:
     CuControlsFactoryPool m_ctrl_factory_pool;
     QWebSocketServer *m_ws_server;
     QUrl m_webso_url;
-    QMultiMap <QString, QWebSocket *> m_so_map;
+//    QMultiMap <QString, QWebSocket *> m_so_map;
+
+    LinkPool m_linkpoo;
 };
 
 

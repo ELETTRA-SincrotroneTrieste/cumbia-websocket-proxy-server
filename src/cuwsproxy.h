@@ -25,11 +25,17 @@ public:
 
     virtual ~CuWsProxy();
 
+    QString src() const;
+
     virtual const CuData& getConfig() const;
 
     CuContext *getContext() const;
 
     virtual const char* actionType() const = 0;
+
+    virtual void dispose();
+
+    virtual bool isRunning() const;
 
 signals:
 

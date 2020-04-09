@@ -29,10 +29,12 @@ public:
     virtual ~CuWsProxyWriter();
     QString target() const;
     const char *actionType() const;
+    bool parseRawTarget(const QString& raw, QString& target, CuVariant &args) const;
 
 public slots:
     void setTarget(const QString& s);
     void clearTarget();
+    void execute(const CuVariant& args);
 
 signals:
     void newData(const CuData&, const char* atype);

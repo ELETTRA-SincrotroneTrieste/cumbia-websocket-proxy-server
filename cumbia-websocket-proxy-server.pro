@@ -27,7 +27,8 @@ SOURCES += src/main.cpp \
         src/cuwsproxyreader.cpp \
         src/cumbia-websocket-proxy-server.cpp \
         src/cuwsproxywriter.cpp \
-        src/cuwssourcevalidator.cpp
+        src/cuwssourcevalidator.cpp \
+        src/linkpool.cpp
 
 HEADERS +=  \
     src/cuwsdatatojson.h \
@@ -36,7 +37,8 @@ HEADERS +=  \
         src/cuwsproxyreader.h \
     src/cumbia-websocket-proxy-server.h \
     src/cuwsproxywriter.h \
-    src/cuwssourcevalidator.h
+    src/cuwssourcevalidator.h \
+    src/linkpool.h
 
 #
 INCLUDEPATH += src

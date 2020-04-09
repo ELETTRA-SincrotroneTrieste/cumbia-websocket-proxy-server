@@ -4,6 +4,7 @@
 #include "cuwsproxyconfig.h"
 #include "cuwssourcevalidator.h"
 #include "cuwsdatatojson.h"
+#include "linkpool.h"
 
 #include <cumbiapool.h>
 #include <cumbiaepics.h>
@@ -79,13 +80,23 @@ void CuWsProxyServer::onAcceptError(QAbstractSocket::SocketError e) {
 void CuWsProxyServer::onNewData(const CuData &data, const char *atype) {
     QuString src(data, "src");
     QString name = QString("%1/%2").arg(atype).arg(src);
-    qDebug() << __PRETTY_FUNCTION__ << "name" << name;
-    foreach(QWebSocket* so, m_so_map.values(name)) {
-        CuWsDataToJson d2j;
-        qDebug() << __PRETTY_FUNCTION__ << "name" << name << "so" << so;
-        so->sendTextMessage(d2j.toJson(data, atype));
+    LinkInfo& li=m_linkpoo.find(name);
+    if(li.isEmpty())
+        perr("no link with name \%s\" was found [CuWsProxyServer::onNewData]", qstoc(name));
+    else {
+        // one shot actions are removed immediately after their first data update
+        // and the proxy is deleted
+        QStringList oneshot_actions = QStringList() << "conf" << "writer";
+        foreach(QWebSocket *so, li.sockets()) {
+            CuWsDataToJson d2j;
+            so->sendTextMessage(d2j.toJson(data, atype));
+            if(oneshot_actions.contains(atype)) {
+                LinkInfo remlink = m_linkpoo.remove(name, so);
+                if(!remlink.isEmpty())
+                    remlink.proxy->deleteLater();
+            }
+        }
     }
-
 }
 
 void CuWsProxyServer::onWebSoErr(QAbstractSocket::SocketError e)
@@ -108,29 +119,34 @@ void CuWsProxyServer::onWsServerClosed() {
 }
 
 void CuWsProxyServer::processTextMessage(const QString &msg) {
-    qDebug() << __PRETTY_FUNCTION__ << msg;
     QWebSocket *so = qobject_cast<QWebSocket *>(sender());
-    QRegularExpression re("(SUBSCRIBE|CONF|WRITE)\\s+(.*)");
+    QRegularExpression re("^(SUBSCRIBE|CONF|WRITE)\\s+(.*)");
     QRegularExpressionMatch ma = re.match(msg);
     if(ma.hasMatch() && ma.capturedTexts().size() == 3) {
-        QString src = ma.capturedTexts()[2];
-        QString mode = ma.capturedTexts()[1].toLower();
-        QString name = mode + "/" + src;
+        QString src = ma.capturedTexts()[2], mode = ma.capturedTexts()[1].toLower(), name = mode + "/" + src;
         CuWsSourceValidator validator;
         if(validator.isValid(src)) {
-            CuWsProxy * proxy = findChild<CuWsProxy *>(name);
+            LinkInfo &li = m_linkpoo.find(name);
+            CuWsProxy * proxy = li.proxy;
             if(!proxy) {
                 if(mode == "subscribe") {
                     proxy = new CuWsProxyReader(this, cu_pool, m_ctrl_factory_pool);
                     qobject_cast<CuWsProxyReader *>(proxy)->setSource(src);
+                    m_linkpoo.add(src, mode, proxy, so);
                 }
                 else if(mode == "conf") {
                     proxy = new CuWsProxyConfig(this, cu_pool, m_ctrl_factory_pool);
                     qobject_cast<CuWsProxyConfig *>(proxy)->setSource(src);
+                    m_linkpoo.add(src, mode, proxy, so);
                 }
                 else {
+                    QString target; CuVariant args;
                     proxy = new CuWsProxyWriter(this, cu_pool, m_ctrl_factory_pool);
-                    qobject_cast<CuWsProxyWriter *>(proxy)->setTarget(src);
+                    qobject_cast<CuWsProxyWriter *>(proxy)->parseRawTarget(src, target, args);
+                    qobject_cast<CuWsProxyWriter *>(proxy)->setTarget(target);
+                    qobject_cast<CuWsProxyWriter *>(proxy)->execute(args);
+                    printf("\e[1;31mCuWsProxyServer::processTextMessage targettt %s\e[0m\n", qstoc(target));
+                    m_linkpoo.add(target, mode, proxy, so);
                 }
                 proxy->setObjectName(name);
                 connect(proxy, SIGNAL(newData(CuData, const char*)), this, SLOT(onNewData(CuData, const char*)));
@@ -142,27 +158,30 @@ void CuWsProxyServer::processTextMessage(const QString &msg) {
                     printf("\e[1;32mCuWsProxyServer.processTextMessage: sending cached configuration \e[1;33m%s\e[0m\n", config.toString().c_str());
                     so->sendTextMessage(d2j.toJson(config, mode.toLatin1().data()));
                 }
+                if(mode == "write") {
+                    QString target; CuVariant args;
+                    qobject_cast<CuWsProxyWriter *>(proxy)->parseRawTarget(src, target, args);
+                    m_linkpoo.add(target, mode, proxy, so);
+                }
+                else
+                    m_linkpoo.add(src, mode, proxy, so);
             }
-            qDebug() << __PRETTY_FUNCTION__ << "saving in so map " << name << so;
-            m_so_map.insert(name, so);
         }
     }
     else {
-        re.setPattern("UNSUBSCRIBE\\s+(.*)");
+        re.setPattern("^(UNSUBSCRIBE|DELCONF|DELWRITE)\\s+(.*)");
         ma = re.match(msg);
-        if(ma.hasMatch() && ma.capturedTexts().size() == 2) {
-            QString src = ma.capturedTexts()[1];
-            m_so_map.remove(src, so);
-            CuWsProxyReader *r = findChild<CuWsProxyReader *>(src);
-            if(r && !m_so_map.contains(src)) {
-                delete r;
-            }
-            else if(!r) {
-                perr("reader \"%s\" not found [CuWsProxyServer::processTextMessage]", qstoc(src));
-            }
+        if(ma.hasMatch() && ma.capturedTexts().size() == 3) {
+            QString src = ma.capturedTexts()[2];
+            QString action = ma.capturedTexts()[1].toLower();
+            action.remove("un").remove("del");
+            LinkInfo li = m_linkpoo.remove(action + "/" + src, so);
+            if(!li.isEmpty())
+                li.proxy->deleteLater();
         }
+        else
+            perr("error: invalid command \"%s\" [CuWsProxyServer.processTextMessage]", qstoc(msg));
     }
-
 }
 
 void CuWsProxyServer::onCliConnected() {
@@ -178,24 +197,11 @@ void CuWsProxyServer::onCliDisconnected() {
     printf("\e[0;35m-\e[0m client %s %s:%d disconnected [CuWsProxyServer.onCliDisconnected]\n",
            qstoc(so->peerName()), qstoc(so->peerAddress().toString()), so->peerPort());
 
-    // find all sources associated with the socket
-    QStringList delsrcs;
-    foreach(QString key, m_so_map.keys()) {
-        // socket is associated to src and src is linked to only one socket: delete
-        if(m_so_map.values(key).contains(so) && m_so_map.values(key).size() == 1)
-            delsrcs << key;
+    foreach(LinkInfo li, m_linkpoo.removeBySocket(so)) {
+        // no more sockets associated to proxy, can delete proxy
+        li.proxy->deleteLater();
     }
-    foreach(QString key, delsrcs) {
-        CuWsProxyReader *r = findChild<CuWsProxyReader *>(key);
-        if(r) {
-            printf("stopping reader \"%s\" which is still active [CuWsProxyServer.onCliDisconnected]\n", qstoc(key));
-            delete r;
-        }
-    }
-    QMutableMapIterator<QString, QWebSocket *> mi(m_so_map);
-    while (mi.hasNext()) {
-        mi.next();
-        if(mi.value() == so)
-            mi.remove();
-    }
+    so->close();
+    so->deleteLater();
 }
+
