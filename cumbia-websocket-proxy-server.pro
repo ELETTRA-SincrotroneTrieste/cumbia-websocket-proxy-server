@@ -1,6 +1,12 @@
 include (/usr/local/cumbia-libs/include/qumbia-epics-controls/qumbia-epics-controls.pri)
 include (/usr/local/cumbia-libs/include/qumbia-tango-controls/qumbia-tango-controls.pri)
 
+INSTALL_DIR=$${INSTALL_ROOT}/bin
+
+message("-")
+message("cumbia-websocket-proxy-server will be installed under $${INSTALL_DIR}")
+message("-")
+
 TEMPLATE = app
 
 QT +=  core
@@ -44,6 +50,10 @@ HEADERS +=  \
 INCLUDEPATH += src
 
 TARGET   = bin/cumbia-websocket-proxy-server
+
+target.path = $${INSTALL_DIR}/bin
+
+INSTALLS += target
 
 # unix:LIBS += -L. -lmylib
 
