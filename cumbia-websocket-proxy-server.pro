@@ -51,7 +51,7 @@ INCLUDEPATH += src
 
 TARGET   = bin/cumbia-websocket-proxy-server
 
-target.path = $${INSTALL_DIR}/bin
+target.path = $${INSTALL_DIR}
 
 INSTALLS += target
 
