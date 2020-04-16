@@ -25,7 +25,7 @@ class CuWsProxyConfig : public CuWsProxy, public CuDataListener
 {
     Q_OBJECT
 public:
-    CuWsProxyConfig(QObject *o, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool);
+    CuWsProxyConfig(QObject *o, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool, bool reader);
     virtual ~CuWsProxyConfig();
     QString source() const;
     const char* actionType() const;

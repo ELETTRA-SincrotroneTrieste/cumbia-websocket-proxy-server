@@ -30,12 +30,12 @@ int LinkInfo::socketCount() const {
 }
 
 int LinkInfo::addSocket(QWebSocket *so) {
-    m_sockets.append(so);
+    m_sockets.insert(so);
     return m_sockets.size();
 }
 
 int LinkInfo::removeSocket(QWebSocket *so) {
-    m_sockets.removeAll(so);
+    m_sockets.remove(so);
     return m_sockets.size();
 }
 
@@ -43,7 +43,7 @@ bool LinkInfo::hasSocket(QWebSocket *so) const {
     return m_sockets.contains(so);
 }
 
-QList<QWebSocket *> LinkInfo::sockets() const {
+QSet<QWebSocket *> LinkInfo::sockets() const {
     return m_sockets;
 }
 
@@ -52,8 +52,18 @@ LinkPool::LinkPool() {
 }
 
 LinkInfo &LinkPool::find(const QString &name) {
+    qDebug() << __PRETTY_FUNCTION__ << "searching" << name << "lkeys" << m_linkmap.keys();
     if(m_linkmap.contains(name))
         return m_linkmap[name];
+    return m_empty_linkinfo;
+}
+
+LinkInfo &LinkPool::find(const QString &name, QWebSocket *so)  {
+    if(m_linkmap.contains(name)) {
+        const LinkInfo &li = m_linkmap.value(name);
+        if(li.sockets().contains(so))
+            return m_linkmap[name];
+    }
     return m_empty_linkinfo;
 }
 
@@ -82,6 +92,7 @@ QList<LinkInfo> LinkPool::removeBySocket(QWebSocket *so)  {
 
 LinkInfo LinkPool::remove(const QString &name, QWebSocket *so)
 {
+    qDebug() << __PRETTY_FUNCTION__ << "removing" << name << so;
     LinkInfo ret;
     QMutableMapIterator<QString, LinkInfo> it(m_linkmap);
     while(it.hasNext()) {

@@ -1,5 +1,6 @@
 #include "cuwsproxyconfig.h"
 #include <cucontrolsreader_abs.h>
+#include <cucontrolswriter_abs.h>
 #include <cumbiapool.h>
 #include <QContextMenuEvent>
 #include <QMetaProperty>
@@ -15,17 +16,19 @@
 class CuWsProxyConfigPrivate
 {
 public:
+    bool reader;
 };
 
 /** \brief Constructor with the parent widget, *CumbiaPool*  and *CuControlsFactoryPool*
  *
  *   Please refer to \ref md_src_cumbia_qtcontrols_widget_constructors documentation.
  */
-CuWsProxyConfig::CuWsProxyConfig(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool) :
+CuWsProxyConfig::CuWsProxyConfig(QObject *w, CumbiaPool *cumbia_pool, const CuControlsFactoryPool &fpool, bool reader) :
     CuWsProxy(w), CuDataListener()
 {
     m_init();
     d_p->context = new CuContext(cumbia_pool, fpool);
+    m->reader = reader;
 }
 
 void CuWsProxyConfig::m_init()
@@ -48,7 +51,8 @@ QString CuWsProxyConfig::source() const
 }
 
 const char *CuWsProxyConfig::actionType() const {
-    return "conf";
+    if(m->reader) return "rconf";
+    return "wconf";
 }
 
 void CuWsProxyConfig::setSource(const QString &s)
@@ -61,9 +65,14 @@ void CuWsProxyConfig::setSource(const QString &s)
     src.remove(d_p->src_proto_prefix);
     printf("CuWsProxyConfig.setSource: src %s\n", qstoc(src));
     d_p->context->setOptions(CuData("properties-only", true));
-    CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
-    if(r)
-        r->setSource(src);
+    if(m->reader) {
+        CuControlsReaderA * r = d_p->context->replace_reader(src.toStdString(), this);
+        if(r) r->setSource(src);
+    }
+    else {
+        CuControlsWriterA * w = d_p->context->replace_writer(src.toStdString(), this);
+        if(w) w->setTarget(src);
+    }
 }
 
 void CuWsProxyConfig::unsetSource()

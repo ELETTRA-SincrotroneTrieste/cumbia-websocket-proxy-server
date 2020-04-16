@@ -3,7 +3,7 @@
 
 #include <QString>
 #include <QMap>
-#include <QList>
+#include <QSet>
 #include <cuwsproxy.h>
 
 class QWebSocket;
@@ -18,7 +18,7 @@ public:
     int addSocket(QWebSocket *so);
     int removeSocket(QWebSocket *so);
     bool hasSocket(QWebSocket *so) const;
-    QList<QWebSocket *> sockets() const;
+    QSet<QWebSocket *> sockets() const;
 
     CuWsProxy *proxy;
     QString name;
@@ -27,7 +27,7 @@ public:
 
 
 private:
-    QList<QWebSocket *>m_sockets;
+    QSet<QWebSocket *>m_sockets;
 
 };
 
@@ -37,6 +37,7 @@ public:
     LinkPool();
 
     LinkInfo& find(const QString& name);
+    LinkInfo &find(const QString& name, QWebSocket *so);
     CuWsProxy* findProxy(const QString& name);
 
     void add(const QString &src, const QString &atype, CuWsProxy *proxy, QWebSocket *so);

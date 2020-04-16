@@ -97,6 +97,8 @@ void CuWsProxyWriter::execute(const CuVariant& args) {
 void CuWsProxyWriter::onUpdate(const CuData &da) {
     std::string message = da["msg"].toString();
     d_p->read_ok = !da["err"].toBool();
+    // avoid emitting newData if data is not an error or not a result
+    bool signal_data = da.has("type", "property") || da["is_result"].toBool() || !d_p->read_ok;
 
     // update link statistics
     d_p->context->getLinkStats()->addOperation();
@@ -109,8 +111,10 @@ void CuWsProxyWriter::onUpdate(const CuData &da) {
         // copy da and modify src to add prefix (ws[s]://)
         CuData dat(da);
         dat["src"] = d_p->src_proto_prefix.toStdString() + da["src"].toString();
-        emit newData(dat, actionType());
+        if(signal_data)
+            emit newData(dat, actionType());
     }
-    else
+    else if(signal_data)
         emit newData(da, actionType());
+    qDebug() << __PRETTY_FUNCTION__ << "signal_data" << signal_data << da.toString().c_str();
 }

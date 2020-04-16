@@ -79,6 +79,8 @@ void CuWsProxyServer::onAcceptError(QAbstractSocket::SocketError e) {
 
 void CuWsProxyServer::onNewData(const CuData &data, const char *atype) {
     QuString src(data, "src");
+    if(strcmp(atype, "write") == 0)
+        printf("%s\n", data.toString().c_str());
     QString name = QString("%1/%2").arg(atype).arg(src);
     LinkInfo& li=m_linkpoo.find(name);
     if(li.isEmpty())
@@ -86,10 +88,14 @@ void CuWsProxyServer::onNewData(const CuData &data, const char *atype) {
     else {
         // one shot actions are removed immediately after their first data update
         // and the proxy is deleted
-        QStringList oneshot_actions = QStringList() << "conf" << "writer";
+        QStringList oneshot_actions = QStringList() << "rconf" << "wconf" << "write";
         foreach(QWebSocket *so, li.sockets()) {
             CuWsDataToJson d2j;
             so->sendTextMessage(d2j.toJson(data, atype));
+
+            if(strcmp(atype, "write") == 0)
+                qDebug() << __PRETTY_FUNCTION__ << "oneshot action contains" << oneshot_actions.contains(atype) << "atyp" << atype;
+
             if(oneshot_actions.contains(atype)) {
                 LinkInfo remlink = m_linkpoo.remove(name, so);
                 if(!remlink.isEmpty())
@@ -119,8 +125,9 @@ void CuWsProxyServer::onWsServerClosed() {
 }
 
 void CuWsProxyServer::processTextMessage(const QString &msg) {
+    qDebug() << __PRETTY_FUNCTION__ << "received" << msg;
     QWebSocket *so = qobject_cast<QWebSocket *>(sender());
-    QRegularExpression re("^(SUBSCRIBE|CONF|WRITE)\\s+(.*)");
+    QRegularExpression re("^(SUBSCRIBE|RCONF|WCONF|WRITE)\\s+(.*)");
     QRegularExpressionMatch ma = re.match(msg);
     if(ma.hasMatch() && ma.capturedTexts().size() == 3) {
         QString src = ma.capturedTexts()[2], mode = ma.capturedTexts()[1].toLower(), name = mode + "/" + src;
@@ -134,18 +141,19 @@ void CuWsProxyServer::processTextMessage(const QString &msg) {
                     qobject_cast<CuWsProxyReader *>(proxy)->setSource(src);
                     m_linkpoo.add(src, mode, proxy, so);
                 }
-                else if(mode == "conf") {
-                    proxy = new CuWsProxyConfig(this, cu_pool, m_ctrl_factory_pool);
+                else if(mode == "rconf" || mode == "wconf") {
+                    proxy = new CuWsProxyConfig(this, cu_pool, m_ctrl_factory_pool, mode == "rconf");
                     qobject_cast<CuWsProxyConfig *>(proxy)->setSource(src);
                     m_linkpoo.add(src, mode, proxy, so);
                 }
-                else {
+                else { // write
                     QString target; CuVariant args;
                     proxy = new CuWsProxyWriter(this, cu_pool, m_ctrl_factory_pool);
                     qobject_cast<CuWsProxyWriter *>(proxy)->parseRawTarget(src, target, args);
                     qobject_cast<CuWsProxyWriter *>(proxy)->setTarget(target);
                     qobject_cast<CuWsProxyWriter *>(proxy)->execute(args);
-                    printf("\e[1;31mCuWsProxyServer::processTextMessage targettt %s\e[0m\n", qstoc(target));
+                    printf("\e[1;31mCuWsProxyServer::processTextMessage targettt %s adding to pool %s/%s\e[0m\n",
+                           qstoc(target), qstoc(mode), qstoc(target));
                     m_linkpoo.add(target, mode, proxy, so);
                 }
                 proxy->setObjectName(name);
@@ -161,15 +169,18 @@ void CuWsProxyServer::processTextMessage(const QString &msg) {
                 if(mode == "write") {
                     QString target; CuVariant args;
                     qobject_cast<CuWsProxyWriter *>(proxy)->parseRawTarget(src, target, args);
-                    m_linkpoo.add(target, mode, proxy, so);
+                    if(m_linkpoo.find(target, so).isEmpty()) // add if <src,so> are new
+                        m_linkpoo.add(target, mode, proxy, so);
                 }
-                else
-                    m_linkpoo.add(src, mode, proxy, so);
+                else { // add if <src, so> are new
+                    if(m_linkpoo.find(src, so).isEmpty())
+                        m_linkpoo.add(src, mode, proxy, so);
+                }
             }
         }
     }
     else {
-        re.setPattern("^(UNSUBSCRIBE|DELCONF|DELWRITE)\\s+(.*)");
+        re.setPattern("^(UNSUBSCRIBE|DELRCONF|DELWCONF|DELWRITE)\\s+(.*)");
         ma = re.match(msg);
         if(ma.hasMatch() && ma.capturedTexts().size() == 3) {
             QString src = ma.capturedTexts()[2];
