@@ -1,4 +1,4 @@
-#include <QApplication>
+#include <QCoreApplication>
 #include "cumbia-websocket-proxy-server.h"
 
 #include <cumbiapool.h>
@@ -14,7 +14,7 @@
 int main(int argc, char *argv[])
 {
     int ret;
-    QApplication qu_app( argc, argv );
+    QCoreApplication qu_app( argc, argv );
     qu_app.setOrganizationName("Elettra");
     qu_app.setApplicationName("Cumbia Websocket Proxy Server");
     QString version(CVSVERSION);
