@@ -199,7 +199,7 @@ void CuWsProxyServer::onCliConnected() {
     QWebSocket *so = m_ws_server->nextPendingConnection();
     connect(so, &QWebSocket::textMessageReceived, this, &CuWsProxyServer::processTextMessage);
     connect(so, &QWebSocket::disconnected, this, &CuWsProxyServer::onCliDisconnected);
-    printf("\e[0;32m+\e[0m client %s %s:%d connected [CuWsProxyServer.onCliDisconnected]\n",
+    printf("\e[0;32m+\e[0m client %s %s:%d connected [CuWsProxyServer.onCliConnected]\n",
            qstoc(so->peerName()), qstoc(so->peerAddress().toString()), so->peerPort());
 }
 
